@@ -25,8 +25,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
 app.use(cookieParser());
 app.use(session({
-    secret: 'secret',
-    //proxy: true,
+    secret: 'shhhhh secret',
     resave: true,
     saveUninitialized: true
 }));
@@ -41,6 +40,7 @@ function(req, res) {
 
 app.get('/login', 
 function(req, res) {
+  console.log(req.session);
   res.render('login');
 });
 
@@ -180,13 +180,19 @@ app.post('/login', function(request, response) {
     }   
 });
  
-// app.get('/logout', function(request, response){
-//     request.session.destroy(function(){
-//         response.redirect('/');
-//     });
-// });
+app.get('/logout', function(request, response){
+  console.log("Got here!")
+    //session.destroy();
+    request.session.destroy(function(){
+      console.log("inside!")
+      response.redirect('/');
+        
+    });
+    //request.session = null;
+});
  
 // app.get('/restricted', restrict, function(request, response){
+//   console.log("here too!");
 //   response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
 // });
  

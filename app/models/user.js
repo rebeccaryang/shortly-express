@@ -9,29 +9,34 @@ var User = db.Model.extend({
   //hasTimestamps: true,
   defaults: {
     username: "demo",
-    password: "demo"
+    password: "demo",
+    salt: "salt"
   },
 
   checkPassword: function(password){
-    // bcrypt.compare(password, this.get('password'), function(err, match){
-      if (password === this.get('password')) {
-        return true;
-      } else {
-        return false;
-      }
-    // })
+    var bcryptAsync = Promise.promisify(bcrypt.compare);
+    return bcryptAsync(password, this.get('password')).then(function(match){
+      return match;
+    })
   },
   // clicks: function() {
   //   return this.hasMany(Click);
   // },
   initialize: function(){
-    this.on('creating', function(model, attrs, options){
-      var myPass = model.get('password');
-      bcrypt.hash(myPass, null, null, function(err, hash){
-        model.set('password', hash);
-      })
+    // this.on('creating', function(model, attrs, options){
+      var myPass = this.get('password');
+      // var hashVal = bcrypt.hash(myPass, 10);
+      // console.log("Hash:" + hashVal);
+      // this.set('password', hashVal);
+      var salt = bcrypt.genSaltSync(10);
+      this.set('salt', salt);
+      var hash = bcrypt.hashSync(myPass, salt);
+      this.set('password', hash);
+      //   null, null, function(err, hash){
+      //   model.set('password', hash);
+      // })
 
-    })
+    // })
 
 
 
