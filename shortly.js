@@ -2,6 +2,8 @@ var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
 var bodyParser = require('body-parser');
+var cookieParser = require('cookie-parser');
+var session = require('express-session');
 
 
 var db = require('./app/config');
@@ -21,23 +23,47 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-
+app.use(cookieParser());
+app.use(session({
+    secret: 'secret',
+    //proxy: true,
+    resave: true,
+    saveUninitialized: true
+}));
 
 app.get('/', 
 function(req, res) {
-  res.render('index');
+
+  restrict(req, res, function(){
+    res.render('index');    
+  }, '/login');
+});
+
+app.get('/login', 
+function(req, res) {
+  res.render('login');
+});
+
+app.get('/signup', 
+function(req, res) {
+  res.render('signup');
 });
 
 app.get('/create', 
 function(req, res) {
-  res.render('index');
+  restrict(req, res, function(){
+    res.render('index');    
+  }, '/login');
 });
 
 app.get('/links', 
 function(req, res) {
-  Links.reset().fetch().then(function(links) {
-    res.send(200, links.models);
-  });
+  restrict(req, res, function(){
+    Links.reset().fetch().then(function(links) {
+      res.send(200, links.models);
+    });
+  }, '/login');
+  
 });
 
 app.post('/links', 
@@ -72,10 +98,98 @@ function(req, res) {
   });
 });
 
+
+app.post('/signup', 
+function(req, res) {
+  var username = req.body.username;
+  var password = req.body.password;
+
+  // If Valid TODO
+
+  new User({username: username, password: password}).fetch().then(function(found) {
+    if(found){
+      res.send(200, found.attributes);
+    } else {
+      Users.create({
+        username: username,
+        password: password
+      })
+      .then(function(newUser){
+        // console.log(newUser);
+        // res.send(200, 'index');
+        //res.writeHead(200);
+        req.session.regenerate(function(){
+        req.session.user = username;
+        res.redirect('/');
+      })
+        //res.render('index');
+      })
+    }
+  })
+});
+
+// app.post('/login',
+// function(req, res){
+//   var username = req.body.username;
+//   var password = req.body.password;
+
+
+//   })
+
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
 
+// var express = require('express');
+// var app = express();
+ 
+// app.use(express.bodyParser());
+
+ 
+ 
+function restrict(req, res, next, redirectTo) {
+  if (req.session.user) {
+    next();
+  } else {
+    req.session.error = 'Access denied!';
+    res.redirect(redirectTo);
+  }
+}
+ 
+
+ 
+app.post('/login', function(request, response) {
+ 
+    var username = request.body.username;
+    var password = request.body.password;
+    var myModel = Users.findWhere({username: username});
+
+    
+    if(myModel){
+      if(myModel.checkPassword(password)){
+          request.session.regenerate(function(){
+          request.session.user = username;
+          response.redirect('/');
+          });
+      }
+      else {
+         response.redirect('/login');
+      }
+    } else {
+      response.redirect('/login');
+    }   
+});
+ 
+// app.get('/logout', function(request, response){
+//     request.session.destroy(function(){
+//         response.redirect('/');
+//     });
+// });
+ 
+// app.get('/restricted', restrict, function(request, response){
+//   response.send('This is the restricted area! Hello ' + request.session.user + '! click <a href="/logout">here to logout</a>');
+// });
+ 
 
 
 /************************************************************/
