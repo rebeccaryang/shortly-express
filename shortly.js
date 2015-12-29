@@ -4,7 +4,8 @@ var partials = require('express-partials');
 var bodyParser = require('body-parser');
 var cookieParser = require('cookie-parser');
 var session = require('express-session');
-
+var bcrypt = require('bcrypt-nodejs');
+var Promise = require('bluebird');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -23,7 +24,7 @@ app.use(bodyParser.json());
 // Parse forms (signup/login)
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
-app.use(cookieParser());
+// app.use(cookieParser());
 app.use(session({
     secret: 'shhhhh secret',
     resave: true,
@@ -40,7 +41,6 @@ function(req, res) {
 
 app.get('/login', 
 function(req, res) {
-  console.log(req.session);
   res.render('login');
 });
 
@@ -58,12 +58,15 @@ function(req, res) {
 
 app.get('/links', 
 function(req, res) {
+  //console.log(req.session.user);
   restrict(req, res, function(){
     Links.reset().fetch().then(function(links) {
       res.send(200, links.models);
     });
   }, '/login');
-  
+  // Links.reset().fetch().then(function(links) {
+  //     res.send(200, links.models);
+  //   });
 });
 
 app.post('/links', 
@@ -148,6 +151,7 @@ function(req, res) {
  
  
 function restrict(req, res, next, redirectTo) {
+  //console.log(req.session.user);
   if (req.session.user) {
     next();
   } else {
@@ -162,11 +166,22 @@ app.post('/login', function(request, response) {
  
     var username = request.body.username;
     var password = request.body.password;
-    var myModel = Users.findWhere({username: username});
-
-    
-    if(myModel){
-      if(myModel.checkPassword(password)){
+    var checkPassword = function(password, checkAgainstDb){
+      var bcryptAsync = Promise.promisify(bcrypt.compare);
+      return bcryptAsync(password, checkAgainstDb).then(function(match){
+        return match;
+      })
+    }
+   // var dbPassword;
+    //var myModel = Users.findWhere({username: username});
+    db.knex('users').where({username: username}).then(function(result){
+      // console.log(result[0]['username']);
+      if (result[0] && result[0]['password']){
+        return result[0]['password'];
+      }
+    }).then(function(dbPassword){
+      if(dbPassword){
+      if(checkPassword(password, dbPassword)){
           request.session.regenerate(function(){
           request.session.user = username;
           response.redirect('/');
@@ -178,13 +193,23 @@ app.post('/login', function(request, response) {
     } else {
       response.redirect('/login');
     }   
+  }
+    )
+
+
+
+
+    // .select('salt').
+    // console.log(temp);
+    //console.log("dbPassword: ", dbPassword, "password", password)
+    
 });
  
 app.get('/logout', function(request, response){
-  console.log("Got here!")
+
     //session.destroy();
     request.session.destroy(function(){
-      console.log("inside!")
+      // response.render('login');
       response.redirect('/');
         
     });
